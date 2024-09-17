@@ -2,10 +2,11 @@ import pkg from "pg"
 import { MeiliSearch } from "meilisearch"
 import dotenv from "dotenv"
 const { Client } = pkg
+import { fetchBucketQuestions } from "./queries.js"
+import { BATCH_SIZE } from "./common.js"
 
 dotenv.config()
 
-const BATCH_SIZE = 1000
 const pgClient = new Client({
   host: process.env.PG_HOST,
   port: process.env.PG_PORT,
@@ -18,20 +19,6 @@ const meiliClient = new MeiliSearch({
   host: process.env.MEILISEARCH_HOST,
   apiKey: process.env.MEILISEARCH_API_KEY,
 })
-
-async function fetchQuestions(offset = 0) {
-  try {
-    const query = `select q.id ,q.parent_id ,q.primary_question_id ,q.question ,q.question_text, q.deleted_at, b.id as bucket_id,c.id as course_id from questions q 
-                    inner join buckets b on q.bucket_id  = b.id inner join courses c on b.course_id = c.id 
-                    WHERE q.deleted_at IS null 
-                    LIMIT $1 OFFSET $2`
-    const res = await pgClient.query(query, [BATCH_SIZE, offset])
-    return res.rows
-  } catch (err) {
-    console.error("Error fetching questions from PostgreSQL:", err)
-    throw err
-  }
-}
 
 async function insertIntoMeiliSearch(questions, offset) {
   try {
@@ -64,7 +51,7 @@ async function syncQuestionsToMeiliSearch() {
     console.log("Connected to PostgreSQL.")
 
     do {
-      questions = await fetchQuestions(offset)
+      questions = await fetchBucketQuestions(offset, pgClient)
 
       if (questions.length > 0) {
         await insertIntoMeiliSearch(questions)
@@ -72,7 +59,7 @@ async function syncQuestionsToMeiliSearch() {
       offset += BATCH_SIZE
     } while (questions.length === BATCH_SIZE)
 
-    console.log("All questions have been synced to Meilisearch.")
+    console.log("All bucket  questions have been synced to Meilisearch.")
   } catch (err) {
     console.error("An error occurred during the sync process:", err)
   } finally {
