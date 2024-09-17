@@ -3,7 +3,7 @@ import { MeiliSearch } from "meilisearch"
 import dotenv from "dotenv"
 const { Client } = pkg
 import { fetchBucketQuestions } from "./queries.js"
-import { BATCH_SIZE } from "./common.js"
+import { BATCH_SIZE, insertIntoMeiliSearch } from "./common.js"
 
 dotenv.config()
 
@@ -20,28 +20,6 @@ const meiliClient = new MeiliSearch({
   apiKey: process.env.MEILISEARCH_API_KEY,
 })
 
-async function insertIntoMeiliSearch(questions, offset) {
-  try {
-    const index = meiliClient.index("testpaper-questions")
-    const res = await index.addDocuments(questions, { primaryKey: "id" })
-
-    await pollTaskStatus(res.taskUid, 1000)
-
-    console.log(`Inserted ${questions.length} questions into Meilisearch.`)
-  } catch (err) {
-    const ids = questions.map((question) => question.id)
-    console.error(
-      "Error inserting questions into Meilisearch:",
-      err,
-      "ids:",
-      ids,
-      "offset",
-      offset
-    )
-    throw err
-  }
-}
-
 async function syncQuestionsToMeiliSearch() {
   let offset = 0
   let questions
@@ -54,7 +32,7 @@ async function syncQuestionsToMeiliSearch() {
       questions = await fetchBucketQuestions(offset, pgClient)
 
       if (questions.length > 0) {
-        await insertIntoMeiliSearch(questions)
+        await insertIntoMeiliSearch(questions, offset, meiliClient)
       }
       offset += BATCH_SIZE
     } while (questions.length === BATCH_SIZE)
@@ -69,21 +47,3 @@ async function syncQuestionsToMeiliSearch() {
 }
 
 syncQuestionsToMeiliSearch()
-
-async function pollTaskStatus(taskUid, interval = 1000) {
-  const checkTask = async () => {
-    const taskStatus = await meiliClient.getTask(taskUid)
-    console.log(`Task Status [${taskUid}]: ${taskStatus.status}`)
-
-    if (taskStatus.status === "succeeded") {
-      console.log("Task succeeded!")
-      clearInterval(pollInterval)
-    } else if (taskStatus.status === "failed") {
-      console.error("Task failed:", taskStatus.error)
-      clearInterval(pollInterval)
-      throw new Error("Failed to add questions")
-    }
-  }
-
-  const pollInterval = setInterval(checkTask, interval)
-}
