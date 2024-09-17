@@ -38,6 +38,7 @@ async function syncQuestionsToMeiliSearch() {
     } while (questions.length === BATCH_SIZE)
 
     console.log("All bucket  questions have been synced to Meilisearch.")
+    offset = 0
   } catch (err) {
     console.error("An error occurred during the sync process:", err)
   } finally {
