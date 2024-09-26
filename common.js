@@ -3,6 +3,9 @@ export const BATCH_SIZE = 1000
 export async function insertIntoMeiliSearch(questions, offset, meiliClient) {
   try {
     const index = meiliClient.index("testpaper-questions")
+
+    index.updateFilterableAttributes(["client_id"])
+
     const res = await index.addDocuments(questions, { primaryKey: "id" })
 
     await pollTaskStatus(res.taskUid, 1000, meiliClient)
