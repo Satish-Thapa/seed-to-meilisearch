@@ -2,9 +2,10 @@ export const BATCH_SIZE = 1000
 
 export async function insertIntoMeiliSearch(questions, offset, meiliClient) {
   try {
-    const index = meiliClient.index("testpaper-questions")
+    const index = meiliClient.index(process.env.MEILISEARCH_INDEX)
 
     index.updateFilterableAttributes(["client_id"])
+    index.updateFilterableAttributes(["reference"])
 
     const res = await index.addDocuments(questions, { primaryKey: "id" })
 
