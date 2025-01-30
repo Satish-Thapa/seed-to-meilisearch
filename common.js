@@ -4,8 +4,7 @@ export async function insertIntoMeiliSearch(questions, offset, meiliClient) {
   try {
     const index = meiliClient.index(process.env.MEILISEARCH_INDEX)
 
-    index.updateFilterableAttributes(["client_id"])
-    index.updateFilterableAttributes(["reference"])
+    index.updateFilterableAttributes(["client_id", "course_id"])
 
     const res = await index.addDocuments(questions, { primaryKey: "id" })
 
